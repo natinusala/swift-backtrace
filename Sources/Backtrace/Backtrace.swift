@@ -63,7 +63,9 @@ private let prettyCallback: CBacktraceFullCallback? = {
         if fn.hasPrefix("$s") || fn.hasPrefix("$S") {
             fn = _stdlib_demangleName(fn)
         }
+        str.append("\u{001B}[91m")
         str.append(fn)
+        str.append("\u{001B}[0m")
     } else {
         str.append("    at <unavailable>")
     }
