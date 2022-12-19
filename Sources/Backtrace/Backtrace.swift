@@ -52,6 +52,41 @@ private let fullCallback: CBacktraceFullCallback? = {
     return 0
 }
 
+private let prettyCallback: CBacktraceFullCallback? = {
+    _, pc, filename, lineno, function in
+
+    var str = ""
+
+    if let function = function {
+        str.append("    at ")
+        var fn = String(cString: function)
+        if fn.hasPrefix("$s") || fn.hasPrefix("$S") {
+            fn = _stdlib_demangleName(fn)
+        }
+        str.append(fn)
+    } else {
+        str.append("    at <unavailable>")
+    }
+
+    str.append("\n")
+
+    if let filename = filename {
+        str.append("       ")
+        str.append(String(cString: filename))
+        str.append(":")
+        str.append(String(lineno))
+        str.append("\n")
+    }
+
+    str.withCString { ptr in
+        _ = withVaList([ptr]) { vaList in
+            vfprintf(stderr, "%s", vaList)
+        }
+    }
+
+    return 0
+}
+
 private let errorCallback: CBacktraceErrorCallback? = {
     _, msg, errNo in
     if let msg = msg {
@@ -63,7 +98,7 @@ private let errorCallback: CBacktraceErrorCallback? = {
 
 private func printBacktrace(signal: CInt) {
     _ = fputs("Received signal \(signal). Backtrace:\n", stderr)
-    backtrace_full(state, /* skip */ 0, fullCallback, errorCallback, nil)
+    backtrace_full(state, /* skip */ 4, prettyCallback, errorCallback, nil)
     fflush(stderr)
 }
 
@@ -85,7 +120,7 @@ public enum Backtrace {
 
     @available(*, deprecated, message: "This method will be removed in the next major version.")
     public static func print() {
-        backtrace_full(state, /* skip */ 0, fullCallback, errorCallback, nil)
+        backtrace_full(state, /* skip */ 4, prettyCallback, errorCallback, nil)
     }
 
     private static func setupHandler(signal: Int32, handler: @escaping @convention(c) (CInt) -> Void) {
